@@ -73,7 +73,7 @@ class QuoteAPI(XTPQuoteAPI):
 
     def __init__(self):
         """"""
-        super(XTPQuotaAPI).__init__()
+        super(XTPQuotaAPI, self).__init__()
 
     def OnDisconnected(self, reason) :
         """"""
