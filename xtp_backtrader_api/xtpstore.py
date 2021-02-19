@@ -168,30 +168,23 @@ class MetaSingleton(MetaParams):
 
 
 class XTPStore(with_metaclass(MetaSingleton, object)):
-    '''Singleton class wrapping to control the connections to XTP.
-
-    Params:
-
-      - ``key_id`` (default:``None``): XTP API key id
-
-      - ``secret_key`` (default: ``None``): XTP API secret key
-
-      - ``paper`` (default: ``False``): use the paper trading environment
-
-      - ``account_tmout`` (default: ``10.0``): refresh period for account
-        value/cash refresh
+    '''
+        Singleton class wrapping to control the connections to XTP.
     '''
 
     BrokerCls = None  # broker class will autoregister
     DataCls = None  # data class will auto register
 
     params = (
-        ('key_id', ''),
-        ('secret_key', ''),
-        ('paper', False),
-        ('usePolygon', False),
-        ('account_tmout', 10.0),  # account balance refresh timeout
-        ('api_version', None)
+        ('server_ip', '127.0.0.1'),
+        ('server_port', 7496),
+        ('client_id', None),  # None generates a random clientid 1 -> 2^16
+        ('protocol', False),
+        ('_debug', False),
+        ('userid', 3),  # -1 forever, 0 No, > 0 number of retries
+        ('password', 3.0),  # timeout between reconnections
+        ('timeoffset', True),  # Use offset to server for timestamps if needed
+        ('timerefresh', 60.0),  # How often to refresh the timeoffset
     )
 
     @classmethod

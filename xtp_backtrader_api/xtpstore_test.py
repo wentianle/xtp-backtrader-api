@@ -6,7 +6,7 @@ from xtpwrapper import QuoteAPI, TraderApi, xtp_enum, xtp_struct
 import backtrader as bt
 
 
-class XTPStoreoteAPI, bt.Store):
+class XTPStore(QuoteAPI, bt.Store):
 
     BrokerCls = None  # broker class will autoregister
     DataCls = None  # data class will auto register
