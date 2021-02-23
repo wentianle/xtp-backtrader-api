@@ -1,4 +1,4 @@
 backtrader==1.9.76.123
-xtpwrapper==0.52.0
+xtpwrapper==1.0.2
 trading_calendars==2.1.1
 
