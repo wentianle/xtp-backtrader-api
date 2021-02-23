@@ -1,23 +1,7 @@
 # This is the example code from the repo's README
-import alpaca_backtrader_api
+import xtp_backtrader_api
 import backtrader as bt
 from datetime import datetime
-
-# Your credentials here
-ALPACA_API_KEY = "<key_id>"
-ALPACA_SECRET_KEY = "<secret_key>"
-
-
-"""
-You have 3 options:
- - backtest (IS_BACKTEST=True, IS_LIVE=False)
- - paper trade (IS_BACKTEST=False, IS_LIVE=False)
- - live trade (IS_BACKTEST=False, IS_LIVE=True)
-"""
-IS_BACKTEST = False
-IS_LIVE = False
-symbol = "AAPL"
-USE_POLYGON = False
 
 
 class SmaCross(bt.SignalStrategy):
@@ -31,25 +15,16 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     cerebro.addstrategy(SmaCross)
 
-    store = alpaca_backtrader_api.AlpacaStore(
-        key_id=ALPACA_API_KEY,
-        secret_key=ALPACA_SECRET_KEY,
-        paper=not IS_LIVE,
-        usePolygon=USE_POLYGON
-    )
+    store = xtp_backtrader_api.XTPStore(userid='53191002899', password='778MhWYa',
+                                        client_id=1, server_ip='120.27.164.138', server_port=6002, debug=True)
 
-    DataFactory = store.getdata  # or use alpaca_backtrader_api.AlpacaData
-    if IS_BACKTEST:
-        data0 = DataFactory(dataname=symbol, historical=True,
-                            fromdate=datetime(
-                                2015, 1, 1), timeframe=bt.TimeFrame.Days)
-    else:
-        data0 = DataFactory(dataname=symbol,
-                            historical=False,
-                            timeframe=bt.TimeFrame.Days)
-        # or just alpaca_backtrader_api.AlpacaBroker()
-        broker = store.getbroker()
-        cerebro.setbroker(broker)
+    DataFactory = store.getdata  # or use xtp_backtrader_api.AlpacaData
+
+    data0 = DataFactory(dataname=symbol, historical=True,
+                        fromdate=datetime(
+                            2015, 1, 1), timeframe=bt.TimeFrame.Days)
+    broker = store.getbroker()
+    cerebro.setbroker(broker)
     cerebro.adddata(data0)
 
     print('Starting Portfolio Value: {}'.format(cerebro.broker.getvalue()))

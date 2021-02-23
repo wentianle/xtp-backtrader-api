@@ -21,8 +21,8 @@ import backtrader as bt
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import queue, with_metaclass
 
-import xtpwrapper.QuotaAPI as XTPQuotaAPI
-import xtpwrapper.TraderAPI as XTPTraderAPI
+import xtpwrapper
+
 import xtpwrapper.xtp_enum as XTPEnum
 import xtpwrapper.xtp_struct as XTPStruct
 
@@ -41,41 +41,53 @@ class XTPError(Exception):
 
         super(XTPError, self).__init__(msg)
 
-class QuoteAPI(XTPQuoteAPI):
 
-    _contracts:dict = {} 
+class MetaSingleton(MetaParams):
+    '''Metaclass to make a metaclassed class a singleton'''
+    def __init__(cls, name, bases, dct):
+        super(MetaSingleton, cls).__init__(name, bases, dct)
+        cls._singleton = None
+
+    def __call__(cls, *args, **kwargs):
+        if cls._singleton is None:
+            cls._singleton = (
+                super(MetaSingleton, cls).__call__(*args, **kwargs))
+
+        return cls._singleton
+
+
+class XTPQuoteAPI(with_metaclass(MetaSingleton, xtpwrapper.QuoteAPI)):
+
     _connectStatus: bool = False
     _loginStatus: bool = False
-    _sub_tikers:list = []
 
     params = (
         ('server_ip', '127.0.0.1'),
         ('server_port', 7496),
         ('client_id', None),  # None generates a random clientid 1 -> 2^16
-        ('protocol', False),
-        ('_debug', False),
+        ('debug', False),
         ('userid', 3),  # -1 forever, 0 No, > 0 number of retries
         ('password', 3.0),  # timeout between reconnections
         ('timeoffset', True),  # Use offset to server for timestamps if needed
         ('timerefresh', 60.0),  # How often to refresh the timeoffset
-        ('tiker', '688158'),  # tiker
+        ('ticks', []),  # How often to refresh the timeoffset
+        ('notifs', collections.deque()),  # How often to refresh the timeoffset
     )
-
-    @classmethod
-    def getdata(cls, *args, **kwargs):
-        '''Returns ``DataCls`` with args, kwargs'''
-        return cls.DataCls(*args, **kwargs)
-
-    @classmethod
-    def getbroker(cls, *args, **kwargs):
-        '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
-        return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self):
         """"""
-        super(XTPQuotaAPI, self).__init__()
+        super(XTPQuoteAPI, self).__init__()
+        self.log_level = XTPEnum.XTP_LOG_LEVEL.XTP_LOG_LEVEL_INFO
+        self.notifs = self.p.notifs
+        self.CreateQuote(self.p.client_id, 'quota', self.log_level)
+        self.SetHeartBeatInterval(10)
+        connected = self.LoginServer()
 
-    def OnDisconnected(self, reason) :
+        if connected == True:
+            self.SubscribeMarketData(
+                self.p.ticks, XTPEnum.XTP_EXCHANGE_TYPE.XTP_EXCHANGE_SH)
+
+    def OnDisconnected(self, reason):
         """"""
         self._connectStatus = False
         self._loginStatus = False
@@ -84,45 +96,9 @@ class QuoteAPI(XTPQuoteAPI):
     def OnError(self, error_info):
         print(error_info)
 
-
-    def OnSubMarketData(self, ticker, error_info, is_last):
-        pass 
-
-    def OnUnSubMarketData(self, ticker, error_info, is_last):
-        """
-        退订行情应答，包括股票、指数和期权
-
-        @remark 每条取消订阅的合约均对应一条取消订阅应答，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-        :param ticker: 详细的合约取消订阅情况
-        :param error_info: 取消订阅合约时发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
-        :param is_last: 是否此次取消订阅的最后一个应答，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
-        :return:
-        """
-        pass
-
     def OnDepthMarketData(self, market_data, bid1_qty, bid1_count, max_bid1_count, ask1_qty, ask1_count, max_ask1_count):
-
-        print(time.asctime(time.localtime(time.time())))
-        print(market_data)
-        # print("-------------------")
-        # print(bid1_qty, bid1_count, max_bid1_count,
-        #       ask1_qty, ask1_count, max_ask1_count)
-
-    def OnQueryAllTickers(self, ticker_info, error_info, is_last):
-        print(ticker_info, error_info)
-
-
-    def Connect(self):
-        log_level = XTPEnum.XTP_LOG_LEVEL.XTP_LOG_LEVEL_ERROR
-        if self.p._debug :
-            log_level = XTPEnum.XTP_LOG_LEVEL.XTP_LOG_LEVEL_TRACE
-        
-        if not self._connectStatus:
-            self.CreateQuote(self.p.client_id, 'quota',log_level)
-            self.SetHeartBeatInterval(10)
-            self.LoginServer()
-        else:
-            print("行情接口已登录，请勿重复操作")
+        self.notifs.append(market_data)
+        return
 
     def LoginServer(self):
         n = self.Login(
@@ -141,30 +117,19 @@ class QuoteAPI(XTPQuoteAPI):
             msg = f"行情服务器登录失败，原因：{n}.".format(n)
 
         print(msg)
+        return n == 0
 
     def Close(self):
         if self._connectStatus:
             self.exit()
 
-    def Subscrbie(self, ticker: list):
-        """"""
-        if self._loginStatus:
-            self.SubscribeMarketData(
-                ticker, XTPEnum.XTP_EXCHANGE_TYPE.XTP_EXCHANGE_UNKNOWN)
-
-
-class MetaSingleton(MetaParams):
-    '''Metaclass to make a metaclassed class a singleton'''
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = (
-                super(MetaSingleton, cls).__call__(*args, **kwargs))
-
-        return cls._singleton
+    def Release(self):
+        """
+        删除接口对象本身
+        不再使用本接口对象时,调用该函数删除接口对象
+        :return: None
+        """
+        super().Release()
 
 
 class XTPStore(with_metaclass(MetaSingleton, object)):
@@ -180,7 +145,7 @@ class XTPStore(with_metaclass(MetaSingleton, object)):
         ('server_port', 7496),
         ('client_id', None),  # None generates a random clientid 1 -> 2^16
         ('protocol', False),
-        ('_debug', False),
+        ('debug', False),
         ('userid', 3),  # -1 forever, 0 No, > 0 number of retries
         ('password', 3.0),  # timeout between reconnections
         ('timeoffset', True),  # Use offset to server for timestamps if needed
@@ -205,12 +170,14 @@ class XTPStore(with_metaclass(MetaSingleton, object)):
         self._env = None  # reference to cerebro for general notifications
         self.broker = None  # broker instance
         self.datas = list()  # datas that have registered over start
+        self.quotaAPI = XTPQuoteAPI(notifs=self.notifs, userid=self.p.userid, password=self.p.password,
+                                    server_ip=self.p.server_ip, server_port=self.p.server_port, ticks=['688158'], debug=self.p.debug, client_id=self.p.client_id)
 
     def start(self, data=None, broker=None):
-        pass 
+        pass
 
     def stop(self):
-        pass 
+        pass
 
     def put_notification(self, msg, *args, **kwargs):
         self.notifs.append((msg, args, kwargs))
@@ -218,3 +185,16 @@ class XTPStore(with_metaclass(MetaSingleton, object)):
     def get_notifications(self):
         '''Return the pending "store" notifications'''
         self.notifs.append(None)  # put a mark / threads could still append
+
+
+if __name__ == '__main__':
+
+    session_id = 0
+    request_id = 1
+    test = XTPStore(userid='53191002899', password='778MhWYa',
+                    client_id=1, server_ip='120.27.164.138', server_port=6002, debug=True)
+
+    while(True):
+        if len(test.notifs):
+            print("===========", test.notifs.pop())
+        time.sleep(1)

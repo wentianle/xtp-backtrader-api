@@ -7,7 +7,7 @@ from setuptools import setup
 
 _version_re = re.compile(r'__version__\s+=\s+(.*)')
 
-with open('alpaca_backtrader_api/__init__.py', 'rb') as f:
+with open('xtp_backtrader_api/__init__.py', 'rb') as f:
     version = str(ast.literal_eval(_version_re.search(
         f.read().decode('utf-8')).group(1)))
 
@@ -22,16 +22,16 @@ with open(os.path.join("requirements", "requirements_test.txt")) as reqs:
 
 
 setup(
-    name='alpaca-backtrader-api',
+    name='xtp-backtrader-api',
     version=version,
-    description='Alpaca API within backtrader',
+    description='XTP API within backtrader',
     long_description=README,
     long_description_content_type='text/markdown',
-    author='Alpaca',
-    author_email='oss@alpaca.markets',
-    url='https://github.com/alpacahq/alpaca-backtrader-api',
+    author='XTP',
+    author_email='oss@xtp.markets',
+    url='https://github.com/wentianle/xtp-backtrader-api',
     keywords='financial,timeseries,api,trade,backtrader',
-    packages=['alpaca_backtrader_api'],
+    packages=['xtp_backtrader_api'],
     install_requires=REQUIREMENTS,
     tests_require=REQUIREMENTS_TEST,
     setup_requires=['pytest-runner', 'flake8'],
